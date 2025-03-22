@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:kicca/domain/model/ai_information_model.dart';
 import 'package:kicca/domain/model/hearing_data_model.dart';
+import 'package:kicca/domain/model/priority_criteria_model.dart';
 
 /// AIサービスプロバイダー
 class AIServiceProvider extends ChangeNotifier {
@@ -66,7 +67,12 @@ class AIServiceProvider extends ChangeNotifier {
 - タイトル：簡潔で分かりやすいタイトル
 - 説明：具体的な内容や手順
 - カテゴリ：「支援制度」「ツール・サービス」「生活の知恵」のいずれか
-- 優先度：0-100の数値（重要度に応じて）
+- 緊急度：0-5の数値（5が最も緊急）
+- 重要度：0-5の数値（5が最も重要）
+- 実装の容易さ：0-5の数値（5が最も容易）
+- 効果の高さ：0-5の数値（5が最も効果的）
+- 即時性：0-5の数値（5が最も即時）
+- 実用性：0-5の数値（5が最も実用的）
 - タグ：関連するキーワード（3つまで）
 - 情報源：情報の出典
 ''';
@@ -95,7 +101,12 @@ class AIServiceProvider extends ChangeNotifier {
     String? title;
     String? description;
     String? category;
-    int? priority;
+    int? urgency;
+    int? importance;
+    int? easeOfImplementation;
+    int? effectiveness;
+    int? immediacy;
+    int? practicality;
     List<String>? tags;
     String? source;
 
@@ -105,17 +116,26 @@ class AIServiceProvider extends ChangeNotifier {
         if (title != null &&
             description != null &&
             category != null &&
-            priority != null &&
+            urgency != null &&
+            importance != null &&
+            easeOfImplementation != null &&
+            effectiveness != null &&
+            immediacy != null &&
+            practicality != null &&
             tags != null &&
             source != null) {
-          result.add(AIInformationModel(
+          result.add(_createInformationModel(
             title: title,
             description: description,
             category: category,
-            priority: priority,
+            urgency: urgency,
+            importance: importance,
+            easeOfImplementation: easeOfImplementation,
+            effectiveness: effectiveness,
+            immediacy: immediacy,
+            practicality: practicality,
             tags: tags,
             source: source,
-            createdAt: DateTime.now(),
           ));
         }
         title = line.substring(5).trim();
@@ -123,9 +143,25 @@ class AIServiceProvider extends ChangeNotifier {
         description = line.substring(3).trim();
       } else if (line.startsWith('カテゴリ：')) {
         category = line.substring(5).trim();
-      } else if (line.startsWith('優先度：')) {
+      } else if (line.startsWith('緊急度：')) {
         final value = line.substring(4).trim();
-        priority = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+        urgency = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+      } else if (line.startsWith('重要度：')) {
+        final value = line.substring(4).trim();
+        importance = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+      } else if (line.startsWith('実装の容易さ：')) {
+        final value = line.substring(7).trim();
+        easeOfImplementation =
+            int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+      } else if (line.startsWith('効果の高さ：')) {
+        final value = line.substring(6).trim();
+        effectiveness = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+      } else if (line.startsWith('即時性：')) {
+        final value = line.substring(4).trim();
+        immediacy = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
+      } else if (line.startsWith('実用性：')) {
+        final value = line.substring(4).trim();
+        practicality = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), ''));
       } else if (line.startsWith('タグ：')) {
         final value = line.substring(3).trim();
         tags = value
@@ -143,20 +179,96 @@ class AIServiceProvider extends ChangeNotifier {
     if (title != null &&
         description != null &&
         category != null &&
-        priority != null &&
+        urgency != null &&
+        importance != null &&
+        easeOfImplementation != null &&
+        effectiveness != null &&
+        immediacy != null &&
+        practicality != null &&
         tags != null &&
         source != null) {
-      result.add(AIInformationModel(
+      result.add(_createInformationModel(
         title: title,
         description: description,
         category: category,
-        priority: priority,
+        urgency: urgency,
+        importance: importance,
+        easeOfImplementation: easeOfImplementation,
+        effectiveness: effectiveness,
+        immediacy: immediacy,
+        practicality: practicality,
         tags: tags,
         source: source,
-        createdAt: DateTime.now(),
       ));
     }
 
     return result;
+  }
+
+  /// 情報モデルを作成する
+  AIInformationModel _createInformationModel({
+    required String title,
+    required String description,
+    required String category,
+    required int urgency,
+    required int importance,
+    required int easeOfImplementation,
+    required int effectiveness,
+    required int immediacy,
+    required int practicality,
+    required List<String> tags,
+    required String source,
+  }) {
+    // カテゴリに応じて優先度を計算
+    final priority = calculatePriority(
+      category: category,
+      urgency: urgency,
+      importance: importance,
+      easeOfImplementation: easeOfImplementation,
+      effectiveness: effectiveness,
+      immediacy: immediacy,
+      practicality: practicality,
+    );
+
+    return AIInformationModel(
+      title: title,
+      description: description,
+      category: category,
+      priority: priority,
+      tags: tags,
+      source: source,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  /// 優先度を計算する
+  int calculatePriority({
+    required String category,
+    required int urgency,
+    required int importance,
+    required int easeOfImplementation,
+    required int effectiveness,
+    required int immediacy,
+    required int practicality,
+  }) {
+    switch (category) {
+      case '支援制度':
+        return PriorityCriteriaModel.calculateSupportScore(
+          urgency: urgency,
+          importance: importance,
+        );
+      case 'ツール・サービス':
+        return PriorityCriteriaModel.calculateToolScore(
+          easeOfImplementation: easeOfImplementation,
+          effectiveness: effectiveness,
+        );
+      case '生活の知恵':
+        return PriorityCriteriaModel.calculateWisdomScore(
+          immediacy: immediacy,
+          practicality: practicality,
+        );
+      default:
+        return 0;
+    }
   }
 }
