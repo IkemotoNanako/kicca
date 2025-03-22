@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kicca/view/page/diagnosis_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,13 +13,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Kicca',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
       ),
+      home: const DiagnosisPage(),
     );
   }
 }
