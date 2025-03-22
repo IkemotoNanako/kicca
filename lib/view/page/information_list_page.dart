@@ -1,157 +1,195 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kicca/domain/model/ai_information_model.dart';
 import 'package:kicca/domain/model/hearing_data_model.dart';
 import 'package:kicca/providers/ai_service_provider.dart';
+import 'package:kicca/services/hearing_service.dart';
 import 'package:kicca/view/component/information_card.dart';
-import 'package:provider/provider.dart';
 
 /// 情報一覧画面
 class InformationListPage extends StatefulWidget {
-  /// ヒヤリング情報
-  final HearingDataModel hearingData;
-
   /// コンストラクタ
-  const InformationListPage({
-    required this.hearingData,
-    super.key,
-  });
+  const InformationListPage({super.key});
 
   @override
   State<InformationListPage> createState() => _InformationListPageState();
 }
 
+/// 情報一覧画面の状態
 class _InformationListPageState extends State<InformationListPage> {
   /// 選択中のカテゴリ
-  String _selectedCategory = '全て';
+  String? _selectedCategory;
 
-  /// 検索キーワード
-  final _searchController = TextEditingController();
+  /// 検索クエリ
+  String _searchQuery = '';
+
+  /// ヒヤリングサービス
+  late final HearingService _hearingService;
 
   @override
   void initState() {
     super.initState();
-    _loadInformation();
+    _initializeServices();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  /// サービスを初期化する
+  Future<void> _initializeServices() async {
+    final prefs = await SharedPreferences.getInstance();
+    _hearingService = HearingService(prefs);
+    await _loadData();
   }
 
-  /// 情報を読み込む
-  Future<void> _loadInformation() async {
-    final provider = context.read<AIServiceProvider>();
-    await provider.generateInformation(widget.hearingData);
+  /// データを読み込む
+  Future<void> _loadData() async {
+    final hearingData = _hearingService.getHearingData();
+    if (hearingData != null) {
+      final aiProvider = Provider.of<AIServiceProvider>(context, listen: false);
+      await aiProvider.generateInformation(hearingData);
+    }
   }
 
-  /// フィルター済みの情報リスト
-  List<AIInformationModel> _getFilteredList() {
-    final provider = context.watch<AIServiceProvider>();
-    return provider.informationList.where((info) {
-      // カテゴリフィルター
-      if (_selectedCategory != '全て' && info.category != _selectedCategory) {
-        return false;
-      }
-      // キーワード検索
-      final keyword = _searchController.text.toLowerCase();
-      if (keyword.isNotEmpty) {
-        return info.title.toLowerCase().contains(keyword) ||
-            info.description.toLowerCase().contains(keyword) ||
-            info.tags.any((tag) => tag.toLowerCase().contains(keyword));
-      }
-      return true;
+  /// フィルタリングされた情報リストを取得
+  List<AIInformationModel> _getFilteredInformation(
+    List<AIInformationModel> informationList,
+  ) {
+    return informationList.where((info) {
+      final matchesCategory =
+          _selectedCategory == null || info.category == _selectedCategory;
+      final matchesSearch = _searchQuery.isEmpty ||
+          info.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          info.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          info.tags.any(
+              (tag) => tag.toLowerCase().contains(_searchQuery.toLowerCase()));
+      return matchesCategory && matchesSearch;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<AIServiceProvider>();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('支援情報一覧'),
-      ),
-      body: Column(
-        children: [
-          // 検索バー
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'キーワードで検索',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
-          ),
-          // カテゴリフィルター
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                '全て',
-                '支援制度',
-                'ツール・サービス',
-                '生活の知恵',
-              ].map((category) {
-                final isSelected = _selectedCategory == category;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(category),
-                    selected: isSelected,
-                    onSelected: (_) {
-                      setState(() {
-                        _selectedCategory = category;
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 情報リスト
-          Expanded(
-            child: provider.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : provider.errorMessage != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              provider.errorMessage!,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _loadInformation,
-                              child: const Text('再試行'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _getFilteredList().length,
-                        itemBuilder: (context, index) {
-                          final info = _getFilteredList()[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: InformationCard(information: info),
-                          );
-                        },
-                      ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
           ),
         ],
+      ),
+      body: Consumer<AIServiceProvider>(
+        builder: (context, aiProvider, child) {
+          if (aiProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (aiProvider.errorMessage != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    aiProvider.errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadData,
+                    child: const Text('再試行'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final filteredInformation =
+              _getFilteredInformation(aiProvider.informationList);
+
+          if (filteredInformation.isEmpty) {
+            return const Center(
+              child: Text('表示する情報がありません'),
+            );
+          }
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: '検索',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          FilterChip(
+                            label: const Text('すべて'),
+                            selected: _selectedCategory == null,
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCategory = null;
+                              });
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: const Text('支援制度'),
+                            selected: _selectedCategory == '支援制度',
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCategory = '支援制度';
+                              });
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: const Text('ツール・サービス'),
+                            selected: _selectedCategory == 'ツール・サービス',
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCategory = 'ツール・サービス';
+                              });
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: const Text('生活の知恵'),
+                            selected: _selectedCategory == '生活の知恵',
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCategory = '生活の知恵';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: filteredInformation.length,
+                  itemBuilder: (context, index) {
+                    final info = filteredInformation[index];
+                    return InformationCard(information: info);
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
