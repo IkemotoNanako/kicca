@@ -22,7 +22,7 @@ class ScoringModel {
     }
 
     // 緊急度（60%）と重要度（40%）の重み付け
-    final weightedScore = (urgency * 0.6 + importance * 0.4) * 100 / 6;
+    final weightedScore = ((urgency * 0.6 + importance * 0.4) / 3) * 100;
     return normalizeScore(weightedScore);
   }
 
@@ -37,7 +37,7 @@ class ScoringModel {
 
     // 実装の容易さ（40%）と効果の高さ（60%）の重み付け
     final weightedScore =
-        (easeOfImplementation * 0.4 + effectiveness * 0.6) * 100 / 6;
+        ((easeOfImplementation * 0.4 + effectiveness * 0.6) / 3) * 100;
     return normalizeScore(weightedScore);
   }
 
@@ -51,7 +51,7 @@ class ScoringModel {
     }
 
     // 即時性（50%）と実用性（50%）の重み付け
-    final weightedScore = (immediacy * 0.5 + practicality * 0.5) * 100 / 6;
+    final weightedScore = ((immediacy * 0.5 + practicality * 0.5) / 3) * 100;
     return normalizeScore(weightedScore);
   }
 
