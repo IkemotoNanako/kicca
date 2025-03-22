@@ -1,5 +1,4 @@
 import '../type/priority_type.dart';
-import '../type/information_type.dart';
 
 /// 優先順位基準を定義するモデルクラス
 class PriorityCriteriaModel {
