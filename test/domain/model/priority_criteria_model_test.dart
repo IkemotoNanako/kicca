@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kicca/domain/model/priority_criteria_model.dart';
 import 'package:kicca/domain/type/priority_type.dart';
-import 'package:kicca/domain/type/information_type.dart';
 
 void main() {
   group('PriorityCriteriaModel', () {
