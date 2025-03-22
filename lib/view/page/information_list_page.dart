@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:kicca/domain/model/ai_information_model.dart';
-import 'package:kicca/services/ai_service.dart';
+import 'package:kicca/domain/model/hearing_data_model.dart';
+import 'package:kicca/providers/ai_service_provider.dart';
 import 'package:kicca/view/component/information_card.dart';
+import 'package:provider/provider.dart';
 
 /// 情報一覧画面
 class InformationListPage extends StatefulWidget {
+  /// ヒヤリング情報
+  final HearingDataModel hearingData;
+
   /// コンストラクタ
-  const InformationListPage({super.key});
+  const InformationListPage({
+    required this.hearingData,
+    super.key,
+  });
 
   @override
   State<InformationListPage> createState() => _InformationListPageState();
@@ -19,12 +27,28 @@ class _InformationListPageState extends State<InformationListPage> {
   /// 検索キーワード
   final _searchController = TextEditingController();
 
-  /// 情報リスト
-  List<AIInformationModel> _informationList = [];
+  @override
+  void initState() {
+    super.initState();
+    _loadInformation();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// 情報を読み込む
+  Future<void> _loadInformation() async {
+    final provider = context.read<AIServiceProvider>();
+    await provider.generateInformation(widget.hearingData);
+  }
 
   /// フィルター済みの情報リスト
-  List<AIInformationModel> get _filteredList {
-    return _informationList.where((info) {
+  List<AIInformationModel> _getFilteredList() {
+    final provider = context.watch<AIServiceProvider>();
+    return provider.informationList.where((info) {
       // カテゴリフィルター
       if (_selectedCategory != '全て' && info.category != _selectedCategory) {
         return false;
@@ -41,52 +65,9 @@ class _InformationListPageState extends State<InformationListPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _loadInformation();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  /// 情報を読み込む
-  Future<void> _loadInformation() async {
-    // TODO: AIServiceから情報を取得
-    setState(() {
-      _informationList = [
-        AIInformationModel(
-          title: '障害者手帳の申請方法',
-          description: '障害者手帳の申請に必要な書類や手続きの流れを解説します。',
-          category: '支援制度',
-          priority: 90,
-          tags: ['障害者手帳', '申請', '手続き'],
-          source: '厚生労働省',
-        ),
-        AIInformationModel(
-          title: 'タスク管理アプリ',
-          description: '日々のタスクを管理しやすいアプリを紹介します。',
-          category: 'ツール・サービス',
-          priority: 80,
-          tags: ['アプリ', 'タスク管理', '生産性'],
-          source: 'アプリレビュー',
-        ),
-        AIInformationModel(
-          title: '集中力を高める方法',
-          description: '仕事や勉強に集中するためのテクニックを紹介します。',
-          category: '生活の知恵',
-          priority: 70,
-          tags: ['集中力', '仕事', '勉強'],
-          source: '専門家コラム',
-        ),
-      ];
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AIServiceProvider>();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('支援情報一覧'),
@@ -138,17 +119,37 @@ class _InformationListPageState extends State<InformationListPage> {
           const SizedBox(height: 16),
           // 情報リスト
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _filteredList.length,
-              itemBuilder: (context, index) {
-                final info = _filteredList[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: InformationCard(information: info),
-                );
-              },
-            ),
+            child: provider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : provider.errorMessage != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              provider.errorMessage!,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadInformation,
+                              child: const Text('再試行'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _getFilteredList().length,
+                        itemBuilder: (context, index) {
+                          final info = _getFilteredList()[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: InformationCard(information: info),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
