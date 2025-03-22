@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kicca/domain/model/hearing_data_model.dart';
 import 'package:kicca/services/hearing_service.dart';
 
