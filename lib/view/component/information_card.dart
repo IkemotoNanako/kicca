@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kicca/domain/model/ai_information_model.dart';
+import 'package:kicca/view/page/information_detail_page.dart';
 
 /// 情報カードコンポーネント
 class InformationCard extends StatelessWidget {
@@ -18,7 +19,13 @@ class InformationCard extends StatelessWidget {
       elevation: 2,
       child: InkWell(
         onTap: () {
-          // TODO: 詳細画面に遷移
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => InformationDetailPage(
+                information: information,
+              ),
+            ),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
