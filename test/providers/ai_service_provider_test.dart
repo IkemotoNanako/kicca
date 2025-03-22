@@ -53,4 +53,54 @@ void main() {
     expect(provider.errorMessage, isNotNull);
     expect(provider.informationList, isEmpty);
   });
+
+  test('優先順位の計算', () {
+    // 支援制度の優先順位計算
+    final supportPriority = provider.calculatePriority(
+      category: '支援制度',
+      urgency: 5,
+      importance: 5,
+      easeOfImplementation: 3,
+      effectiveness: 3,
+      immediacy: 3,
+      practicality: 3,
+    );
+    expect(supportPriority, inInclusiveRange(0, 100));
+
+    // ツール・サービスの優先順位計算
+    final toolPriority = provider.calculatePriority(
+      category: 'ツール・サービス',
+      urgency: 3,
+      importance: 3,
+      easeOfImplementation: 5,
+      effectiveness: 5,
+      immediacy: 3,
+      practicality: 3,
+    );
+    expect(toolPriority, inInclusiveRange(0, 100));
+
+    // 生活の知恵の優先順位計算
+    final wisdomPriority = provider.calculatePriority(
+      category: '生活の知恵',
+      urgency: 3,
+      importance: 3,
+      easeOfImplementation: 3,
+      effectiveness: 3,
+      immediacy: 5,
+      practicality: 5,
+    );
+    expect(wisdomPriority, inInclusiveRange(0, 100));
+
+    // 無効なカテゴリの優先順位計算
+    final invalidPriority = provider.calculatePriority(
+      category: '無効なカテゴリ',
+      urgency: 5,
+      importance: 5,
+      easeOfImplementation: 5,
+      effectiveness: 5,
+      immediacy: 5,
+      practicality: 5,
+    );
+    expect(invalidPriority, 0);
+  });
 }
