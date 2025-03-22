@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:kicca/domain/model/diagnosis_item_model.dart';
 import 'package:kicca/domain/model/diagnosis_result_model.dart';
 import 'package:kicca/domain/type/diagnosis_type.dart';
+import 'package:kicca/providers/ai_suggestion_provider.dart';
 
 /// 診断画面
 class DiagnosisPage extends StatefulWidget {
@@ -53,6 +55,11 @@ class _DiagnosisPageState extends State<DiagnosisPage> {
         dailyScore: dailyScore,
       );
     });
+
+    // AIによる提案を生成
+    final aiProvider =
+        Provider.of<AISuggestionProvider>(context, listen: false);
+    aiProvider.generateSuggestions(_result!);
   }
 
   /// カテゴリー別のスコアを計算する
@@ -71,6 +78,11 @@ class _DiagnosisPageState extends State<DiagnosisPage> {
       _currentIndex = 0;
       _result = null;
     });
+
+    // AIによる提案をクリア
+    final aiProvider =
+        Provider.of<AISuggestionProvider>(context, listen: false);
+    aiProvider.clearSuggestions();
   }
 
   @override
@@ -194,6 +206,100 @@ class _DiagnosisPageState extends State<DiagnosisPage> {
               ),
             ),
           ],
+          const SizedBox(height: 32),
+          Text(
+            'AIによる提案',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 16),
+          Consumer<AISuggestionProvider>(
+            builder: (context, aiProvider, child) {
+              if (aiProvider.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (aiProvider.errorMessage != null) {
+                return Card(
+                  color: Colors.red,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      aiProvider.errorMessage!,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                );
+              }
+
+              if (aiProvider.suggestions.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text('提案がありません'),
+                  ),
+                );
+              }
+
+              return Column(
+                children: aiProvider.suggestions.map((suggestion) {
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            suggestion.title,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: suggestion.getPriorityColor(),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '優先度: ${suggestion.priority}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            suggestion.description,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              Chip(
+                                label: Text(suggestion.category),
+                                backgroundColor: Colors.blue[100],
+                              ),
+                              ...suggestion.tags.map(
+                                (tag) => Chip(
+                                  label: Text(tag),
+                                  backgroundColor: Colors.grey[200],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
